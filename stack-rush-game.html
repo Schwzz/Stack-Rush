@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stack Rush</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            touch-action: manipulation;
+            transition: background 2s ease, transform 0.8s ease-in-out;
+            position: relative;
+        }
+
+        /* Animated background particles */
+        body::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.06) 0%, transparent 50%);
+            animation: floatParticles 15s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes floatParticles {
+            0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; }
+            50% { transform: translateY(-20px) scale(1.05); opacity: 0.5; }
+        }
+
+        body.bg1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        body.bg2 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        body.bg3 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        body.bg4 { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        body.bg5 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+
+        body.gravity-flip {
+            transform: rotate(180deg);
+        }
+
+        body.shake {
+            animation: shake 0.3s ease-in-out;
+        }
+
+        body.pulse {
+            animation: pulseBody 0.4s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px) rotate(-0.5deg); }
+            75% { transform: translateX(5px) rotate(0.5deg); }
+        }
+
+        @keyframes pulseBody {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        body.glitch {
+            animation: glitchEffect 0.3s ease-in-out;
+        }
+
+        @keyframes glitchEffect {
+            0%, 100% { filter: none; }
+            25% { filter: hue-rotate(90deg) saturate(3); }
+            50% { filter: hue-rotate(180deg) invert(1); }
+            75% { filter: hue-rotate(270deg) saturate(3); }
+        }
+
+        #gameContainer {
+            position: relative;
+        }
+
+        #scoreBoard {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 20px;
+            max-width: 400px;
+        }
+
+        .scoreCard {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 10px 16px;
+            color: white;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .scoreCard.streak {
+            background: rgba(255, 215, 0, 0.3);
+            border: 2px solid gold;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .scoreCard .label {
+            font-size: 11px;
+            opacity: 0.8;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .scoreCard .value {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        #canvasWrapper {
+            position: relative;
+        }
+
+        #canvas {
+            display: block;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            background: 
+                repeating-linear-gradient(
+                    90deg,
+                    rgba(0, 0, 0, 0.15) 0px,
+                    rgba(0, 0, 0, 0.15) 1px,
+                    rgba(0, 0, 0, 0.2) 1px,
+                    rgba(0, 0, 0, 0.2) 40px
+                ),
+                linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.1) 100%);
+        }
+
+        #perfectPopup {
+            position: absolute;
+            top: 45%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #FFD700;
+            font-size: 32px;
+            font-weight: 900;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+            pointer-events: none;
+            opacity: 0;
+            z-index: 100;
+        }
+
+        #perfectPopup.show {
+            animation: perfectAnim 0.6s ease-out;
+        }
+
+        #perfectPopup.clutch {
+            color: #FF4500;
+            font-size: 40px;
+            text-shadow: 0 0 30px rgba(255, 69, 0, 1),
+                         0 0 50px rgba(255, 140, 0, 0.8);
+        }
+
+        @keyframes perfectAnim {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.3);
+            }
+            40% {
+                opacity: 1;
+                transform: translate(-50%, -55%) scale(1.3);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -65%) scale(0.8);
+            }
+        }
+
+        #scorePopup {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 20px;
+            font-weight: 700;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            opacity: 0;
+            z-index: 99;
+        }
+
+        #scorePopup.show {
+            animation: scoreAnim 1s ease-out;
+        }
+
+        #scorePopup.bonus {
+            color: #FFD700;
+            font-size: 24px;
+        }
+
+        #scorePopup.penalty {
+            color: #FF3333;
+            font-size: 24px;
+            text-shadow: 0 2px 10px rgba(255, 51, 51, 0.8);
+        }
+
+        @keyframes scoreAnim {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) translateY(0);
+            }
+            20% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) translateY(-40px);
+            }
+        }
+
+        #eventPopup {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff006e;
+            font-size: 22px;
+            font-weight: 800;
+            text-shadow: 0 0 15px rgba(255, 0, 110, 0.8);
+            pointer-events: none;
+            opacity: 0;
+            z-index: 101;
+        }
+
+        #eventPopup.show {
+            animation: eventAnim 1.5s ease-out;
+        }
+
+        #eventPopup.gravity {
+            color: #8338ec;
+            font-size: 26px;
+            text-shadow: 0 0 20px rgba(131, 56, 236, 0.9);
+        }
+
+        #eventPopup.penalty {
+            color: #FF0000;
+            font-size: 24px;
+            text-shadow: 0 0 20px rgba(255, 0, 0, 0.9);
+        }
+
+        #eventPopup.milestone {
+            color: #00FF00;
+            font-size: 26px;
+            text-shadow: 0 0 20px rgba(0, 255, 0, 0.9);
+        }
+
+        @keyframes eventAnim {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            15% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+            85% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.8);
+            }
+        }
+
+        #instructions {
+            margin-top: 16px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+            text-align: center;
+        }
+
+        #gameOver {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px 60px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+        }
+
+        #gameOver h2 {
+            color: #667eea;
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+
+        #gameOver p {
+            color: #666;
+            font-size: 20px;
+            margin-bottom: 24px;
+        }
+
+        #restartBtn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 40px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transition: transform 0.2s;
+        }
+
+        #restartBtn:hover {
+            transform: translateY(-2px);
+        }
+
+        #restartBtn:active {
+            transform: translateY(0);
+        }
+
+        .particle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #FFD700;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particleFloat 1s ease-out forwards;
+        }
+
+        @keyframes particleFloat {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100px) scale(0);
+            }
+        }
+
+        .sparkle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: sparkleAnim 0.8s ease-out forwards;
+        }
+
+        @keyframes sparkleAnim {
+            0% {
+                opacity: 1;
+                transform: scale(0);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.5);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0);
+            }
+        }
+    </style>
+</head>
+<body class="bg1">
+    <div id="gameContainer">
+        <div id="scoreBoard">
+            <div class="scoreCard">
+                <div class="label">Score</div>
+                <div class="value" id="score">0</div>
+            </div>
+            <div class="scoreCard">
+                <div class="label">Best</div>
+                <div class="value" id="best">0</div>
+            </div>
+            <div class="scoreCard" id="streakCard">
+                <div class="label">Streak</div>
+                <div class="value" id="streak">0</div>
+            </div>
+            <div class="scoreCard">
+                <div class="label">Height</div>
+                <div class="value" id="height">1</div>
+            </div>
+        </div>
+        <div id="canvasWrapper">
+            <canvas id="canvas" width="400" height="600"></canvas>
+            <div id="perfectPopup">PERFECT!</div>
+            <div id="scorePopup">+100</div>
+            <div id="eventPopup">BONUS BLOCK!</div>
+        </div>
+        <div id="instructions">Click or tap to drop</div>
+    </div>
+
+    <div id="gameOver">
+        <h2>Game Over!</h2>
+        <p>Final Score: <span id="finalScore">0</span></p>
+        <p>Best Streak: <span id="finalStreak">0</span></p>
+        <button id="restartBtn">Play Again</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const perfectPopup = document.getElementById('perfectPopup');
+        const scorePopup = document.getElementById('scorePopup');
+        const eventPopup = document.getElementById('eventPopup');
+        const streakCard = document.getElementById('streakCard');
+        
+        let blocks = [];
+        let currentBlock = null;
+        let score = 0;
+        let bestScore = 0;
+        let gameRunning = false;
+        let moveSpeed = 5;
+        let moveDirection = -1;
+        let cameraY = 0;
+        let targetCameraY = 0;
+        let fallingBlock = null;
+        let fallSpeed = 0;
+        let blockSide = -1;
+        let nextBlockWidth = 150;
+        const MAX_BLOCK_WIDTH = 180;
+        const MIN_BLOCK_WIDTH = 15;
+        const DEFAULT_BLOCK_WIDTH = 150;
+        
+        let perfectStreak = 0;
+        let maxStreak = 0;
+        let scoreMultiplier = 1;
+        let isBonusBlock = false;
+        let isPenaltyBlock = false;
+        let wasBonus = false;
+        let wasPenalty = false;
+        let wasClutch = false;
+        let placedBlockCount = 0;
+        let isGravityFlipped = false;
+        let gravityFlipBlocksRemaining = 0;
+        let currentBgIndex = 0;
+        let towerHeight = 0;
+        let isSlowMotion = false;
+        
+        // Audio context
+        let audioContext;
+        let scorePopupCounter = 0;
+        
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+        
+        function playSound(frequency, duration, volume = 0.6) {
+            initAudio();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = 'square';
+            
+            gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+
+        function init() {
+            blocks = [];
+            score = 0;
+            gameRunning = true;
+            cameraY = 0;
+            targetCameraY = 0;
+            fallingBlock = null;
+            blockSide = -1;
+            moveDirection = -1;
+            nextBlockWidth = DEFAULT_BLOCK_WIDTH;
+            perfectStreak = 0;
+            maxStreak = 0;
+            scoreMultiplier = 1;
+            isBonusBlock = false;
+            isPenaltyBlock = false;
+            wasBonus = false;
+            wasPenalty = false;
+            wasClutch = false;
+            placedBlockCount = 0;
+            isGravityFlipped = false;
+            gravityFlipBlocksRemaining = 0;
+            currentBgIndex = 0;
+            towerHeight = 1;
+            isSlowMotion = false;
+            
+            document.body.className = 'bg1';
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('score').textContent = score;
+            document.getElementById('streak').textContent = perfectStreak;
+            document.getElementById('height').textContent = towerHeight;
+            document.getElementById('instructions').style.display = 'block';
+            streakCard.classList.remove('streak');
+            
+            blocks.push({
+                x: 125,
+                y: 550,
+                width: DEFAULT_BLOCK_WIDTH,
+                height: 30,
+                color: getBlockColor(0),
+                isBonus: false
+            });
+            
+            createNewBlock();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function getBlockColor(index) {
+            if (isPenaltyBlock) return '#FF3333';
+            if (isBonusBlock) return '#FFD700';
+            const hue = (index * 20) % 360;
+            return `hsl(${hue}, 70%, 60%)`;
+        }
+
+        function createNewBlock() {
+            const lastBlock = blocks[blocks.length - 1];
+            const blockWidth = nextBlockWidth;
+            
+            // Determine block type - reduced spawn rates
+            isPenaltyBlock = Math.random() < 0.04; // 4% chance (reduced from 7%)
+            isBonusBlock = !isPenaltyBlock && Math.random() < 0.05; // 5% chance (reduced from 8%)
+            
+            if (isPenaltyBlock) {
+                showEventPopup('⚠️ PENALTY BLOCK – Be Precise!', 'penalty');
+                playSound(200, 0.15, 0.7);
+            } else if (isBonusBlock) {
+                showEventPopup('BONUS BLOCK!', false);
+                playSound(800, 0.15, 0.7);
+                createSparkles(canvas.width / 2, 300);
+            }
+            
+            const startX = blockSide === -1 ? canvas.width : -blockWidth;
+            moveDirection = blockSide;
+            
+            currentBlock = {
+                x: startX,
+                y: lastBlock.y - 35,
+                width: blockWidth,
+                height: 30,
+                color: getBlockColor(blocks.length),
+                isBonus: isBonusBlock,
+                isPenalty: isPenaltyBlock
+            };
+            
+            blockSide *= -1;
+        }
+
+        function gameLoop() {
+            if (!gameRunning && !fallingBlock) return;
+            
+            cameraY += (targetCameraY - cameraY) * 0.15;
+            
+            if (fallingBlock) {
+                fallSpeed += 1;
+                fallingBlock.y += fallSpeed;
+                
+                if (fallingBlock.y >= fallingBlock.targetY) {
+                    fallingBlock.y = fallingBlock.targetY;
+                    blocks.push({
+                        x: fallingBlock.x,
+                        y: fallingBlock.y,
+                        width: fallingBlock.width,
+                        height: fallingBlock.height,
+                        color: fallingBlock.color,
+                        isBonus: fallingBlock.isBonus
+                    });
+                    fallingBlock = null;
+                    
+                    if (gameRunning) {
+                        createNewBlock();
+                    }
+                }
+            }
+            
+            if (currentBlock && gameRunning) {
+                const speed = isSlowMotion ? moveSpeed * 0.3 : moveSpeed;
+                currentBlock.x += speed * moveDirection;
+                
+                if (moveDirection === 1 && currentBlock.x + currentBlock.width >= canvas.width) {
+                    moveDirection = -1;
+                } else if (moveDirection === -1 && currentBlock.x <= 0) {
+                    moveDirection = 1;
+                }
+            }
+            
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.save();
+            ctx.translate(0, cameraY);
+            
+            blocks.forEach(block => {
+                // Bonus block glow effect
+                if (block.isBonus) {
+                    ctx.shadowColor = '#FFD700';
+                    ctx.shadowBlur = 20;
+                }
+                
+                // Penalty block flicker effect
+                if (block.isPenalty) {
+                    ctx.shadowColor = '#FF0000';
+                    ctx.shadowBlur = 15;
+                    const flicker = Math.sin(Date.now() / 100) * 0.3 + 0.7;
+                    ctx.globalAlpha = flicker;
+                }
+                
+                ctx.fillStyle = block.color;
+                ctx.fillRect(block.x, block.y, block.width, block.height);
+                
+                // Bonus block border
+                if (block.isBonus) {
+                    ctx.strokeStyle = '#FFF';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(block.x, block.y, block.width, block.height);
+                }
+                
+                // Penalty block warning border
+                if (block.isPenalty) {
+                    ctx.strokeStyle = '#FF0000';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(block.x, block.y, block.width, block.height);
+                }
+                
+                ctx.globalAlpha = 1;
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.fillRect(block.x, block.y, block.width, block.height / 3);
+            });
+            
+            if (fallingBlock) {
+                if (fallingBlock.isBonus) {
+                    ctx.shadowColor = '#FFD700';
+                    ctx.shadowBlur = 20;
+                }
+                
+                if (fallingBlock.isPenalty) {
+                    ctx.shadowColor = '#FF0000';
+                    ctx.shadowBlur = 15;
+                }
+                
+                ctx.fillStyle = fallingBlock.color;
+                ctx.fillRect(fallingBlock.x, fallingBlock.y, fallingBlock.width, fallingBlock.height);
+                
+                if (fallingBlock.isBonus) {
+                    ctx.strokeStyle = '#FFF';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(fallingBlock.x, fallingBlock.y, fallingBlock.width, fallingBlock.height);
+                }
+                
+                if (fallingBlock.isPenalty) {
+                    ctx.strokeStyle = '#FF0000';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(fallingBlock.x, fallingBlock.y, fallingBlock.width, fallingBlock.height);
+                }
+                
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.fillRect(fallingBlock.x, fallingBlock.y, fallingBlock.width, fallingBlock.height / 3);
+            }
+            
+            if (currentBlock && gameRunning) {
+                if (currentBlock.isBonus) {
+                    ctx.shadowColor = '#FFD700';
+                    ctx.shadowBlur = 25;
+                    
+                    // Pulsing effect
+                    const pulse = Math.sin(Date.now() / 200) * 3;
+                    ctx.fillStyle = currentBlock.color;
+                    ctx.fillRect(currentBlock.x - pulse/2, currentBlock.y - pulse/2, 
+                                currentBlock.width + pulse, currentBlock.height + pulse);
+                    
+                    ctx.strokeStyle = '#FFF';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(currentBlock.x - pulse/2, currentBlock.y - pulse/2, 
+                                  currentBlock.width + pulse, currentBlock.height + pulse);
+                } else if (currentBlock.isPenalty) {
+                    ctx.shadowColor = '#FF0000';
+                    ctx.shadowBlur = 20;
+                    
+                    // Flicker effect
+                    const flicker = Math.sin(Date.now() / 100) * 0.3 + 0.7;
+                    ctx.globalAlpha = flicker;
+                    
+                    ctx.fillStyle = currentBlock.color;
+                    ctx.fillRect(currentBlock.x, currentBlock.y, currentBlock.width, currentBlock.height);
+                    
+                    ctx.strokeStyle = '#FF0000';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(currentBlock.x, currentBlock.y, currentBlock.width, currentBlock.height);
+                    
+                    ctx.globalAlpha = 1;
+                } else {
+                    ctx.fillStyle = currentBlock.color;
+                    ctx.fillRect(currentBlock.x, currentBlock.y, currentBlock.width, currentBlock.height);
+                }
+                
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fillRect(currentBlock.x, currentBlock.y, currentBlock.width, currentBlock.height / 3);
+            }
+            
+            ctx.restore();
+        }
+
+        function dropBlock() {
+            if (!gameRunning || !currentBlock || fallingBlock) return;
+            
+            document.getElementById('instructions').style.display = 'none';
+            
+            const lastBlock = blocks[blocks.length - 1];
+            let leftEdge = Math.max(currentBlock.x, lastBlock.x);
+            let rightEdge = Math.min(currentBlock.x + currentBlock.width, lastBlock.x + lastBlock.width);
+            let overlapWidth = rightEdge - leftEdge;
+            
+            if (overlapWidth <= 0) {
+                gameOver();
+                return;
+            }
+            
+            let widthDiff = Math.abs(overlapWidth - lastBlock.width);
+            let isPerfect = widthDiff <= 1;
+            
+            let blockScore;
+            let finalWidth;
+            const wasBonus = isBonusBlock;
+            
+            if (isPerfect) {
+                perfectStreak++;
+                maxStreak = Math.max(maxStreak, perfectStreak);
+                document.getElementById('streak').textContent = perfectStreak;
+                
+                // Reset to default width every 2 perfects
+                if (perfectStreak % 2 === 0) {
+                    nextBlockWidth = DEFAULT_BLOCK_WIDTH;
+                    
+                    // Update ALL existing blocks to match default width
+                    blocks.forEach(block => {
+                        const centerX = block.x + block.width / 2;
+                        block.width = DEFAULT_BLOCK_WIDTH;
+                        block.x = centerX - DEFAULT_BLOCK_WIDTH / 2;
+                    });
+                    
+                    showEventPopup('SIZE RESET!', false);
+                }
+                
+                if (perfectStreak >= 5) {
+                    scoreMultiplier = 1 + Math.floor(perfectStreak / 5) * 0.5;
+                    streakCard.classList.add('streak');
+                }
+                
+                blockScore = Math.floor(100 * scoreMultiplier);
+                if (wasBonus) {
+                    blockScore = 200;
+                    createParticles(canvas.width / 2, 300, 20);
+                }
+                
+                showPerfectPopup();
+                createParticles(canvas.width / 2, 300, 10);
+                playSound(800, 0.15, 0.6);
+                
+                if (perfectStreak >= 10) {
+                    document.body.classList.add('glitch');
+                    setTimeout(() => document.body.classList.remove('glitch'), 300);
+                }
+                
+                const oldWidth = lastBlock.width;
+                finalWidth = Math.min(oldWidth + 10, MAX_BLOCK_WIDTH);
+                const widthDelta = finalWidth - oldWidth;
+                
+                blocks.forEach(block => {
+                    block.x -= widthDelta / 2;
+                    block.width = finalWidth;
+                });
+                
+                if (perfectStreak % 2 !== 0) {
+                    nextBlockWidth = finalWidth;
+                }
+            } else {
+                perfectStreak = 0;
+                scoreMultiplier = 1;
+                streakCard.classList.remove('streak');
+                document.getElementById('streak').textContent = perfectStreak;
+                
+                const accuracy = overlapWidth / lastBlock.width;
+                
+                // PENALTY BLOCK - DEDUCT POINTS
+                if (wasPenalty) {
+                    score -= 100; // DIRECTLY SUBTRACT 100 FROM SCORE
+                    score = Math.max(0, score); // Don't go below 0
+                    document.getElementById('score').textContent = score;
+                    
+                    blockScore = 0; // Don't add any points later
+                    showScorePopup(-100, false, true); // Show red -100
+                    showEventPopup('–100 PENALTY!', 'penalty');
+                    playSound(150, 0.2, 0.7);
+                    
+                    // Red flash effect
+                    document.body.style.filter = 'brightness(1.3) hue-rotate(350deg)';
+                    setTimeout(() => {
+                        document.body.style.filter = '';
+                    }, 200);
+                } else {
+                    blockScore = Math.floor(accuracy * 100);
+                    playSound(300, 0.1, 0.6);
+                }
+                
+                finalWidth = overlapWidth;
+                nextBlockWidth = overlapWidth;
+            }
+            
+            showScorePopup(blockScore, wasBonus || wasClutch, wasPenalty && !isPerfect);
+            
+            // Only add blockScore if it's not a penalty (already handled above)
+            if (!wasPenalty || isPerfect) {
+                score += blockScore;
+                score = Math.max(0, score);
+                document.getElementById('score').textContent = score;
+            }
+            
+            if (score > bestScore) {
+                bestScore = score;
+                document.getElementById('best').textContent = bestScore;
+            }
+            
+            placedBlockCount++;
+            towerHeight++;
+            document.getElementById('height').textContent = towerHeight;
+            
+            // Pulse effect on 2 or 3 perfect streak
+            if (perfectStreak === 2 || perfectStreak === 3) {
+                document.body.classList.add('pulse');
+                setTimeout(() => document.body.classList.remove('pulse'), 400);
+            }
+            
+            // Handle gravity flip countdown
+            if (isGravityFlipped) {
+                gravityFlipBlocksRemaining--;
+                if (gravityFlipBlocksRemaining <= 0) {
+                    isGravityFlipped = false;
+                    document.body.classList.remove('gravity-flip');
+                }
+            }
+            
+            // 5% chance for gravity flip (only if not already flipped)
+            if (!isGravityFlipped && Math.random() < 0.05 && placedBlockCount > 3) {
+                isGravityFlipped = true;
+                gravityFlipBlocksRemaining = 3;
+                document.body.classList.add('gravity-flip');
+                showEventPopup('GRAVITY FLIP!', true);
+                playSound(400, 0.2, 0.7);
+            }
+            
+            // Change background every 10 blocks
+            if (placedBlockCount % 10 === 0) {
+                const backgrounds = ['bg1', 'bg2', 'bg3', 'bg4', 'bg5'];
+                let newBg;
+                do {
+                    newBg = backgrounds[Math.floor(Math.random() * backgrounds.length)];
+                } while (newBg === document.body.className.split(' ').find(c => c.startsWith('bg')));
+                
+                document.body.className = document.body.className.replace(/bg\d/, newBg);
+            }
+            
+            if (perfectStreak > 0 && perfectStreak % 3 === 0 && perfectStreak > 3) {
+                document.body.classList.add('shake');
+                setTimeout(() => document.body.classList.remove('shake'), 300);
+            }
+            
+            const blockX = isPerfect ? (lastBlock.x + lastBlock.width / 2 - finalWidth / 2) : leftEdge;
+            
+            fallingBlock = {
+                x: blockX,
+                y: currentBlock.y,
+                targetY: lastBlock.y - 35,
+                width: finalWidth,
+                height: 30,
+                color: currentBlock.color,
+                isBonus: wasBonus || (wasPenalty && isPerfect), // Convert penalty to bonus on perfect
+                isPenalty: wasPenalty && !isPerfect
+            };
+            fallSpeed = 0;
+            
+            const topBlockY = lastBlock.y - 35;
+            if (topBlockY < 200) {
+                targetCameraY += 35;
+            }
+            
+            if (finalWidth < MIN_BLOCK_WIDTH) {
+                setTimeout(() => gameOver(), 200);
+                gameRunning = false;
+                return;
+            }
+            
+            currentBlock = null;
+        }
+
+        function createParticles(x, y, count = 10) {
+            for (let i = 0; i < count; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = x + Math.random() * 100 - 50 + 'px';
+                particle.style.top = y + Math.random() * 100 - 50 + 'px';
+                document.getElementById('canvasWrapper').appendChild(particle);
+                
+                setTimeout(() => particle.remove(), 1000);
+            }
+        }
+
+        function createSparkles(x, y) {
+            for (let i = 0; i < 8; i++) {
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle';
+                sparkle.style.left = x + Math.random() * 80 - 40 + 'px';
+                sparkle.style.top = y + Math.random() * 80 - 40 + 'px';
+                document.getElementById('canvasWrapper').appendChild(sparkle);
+                
+                setTimeout(() => sparkle.remove(), 800);
+            }
+        }
+
+        function showPerfectPopup() {
+            perfectPopup.textContent = 'PERFECT!';
+            perfectPopup.classList.remove('show', 'clutch');
+            void perfectPopup.offsetWidth;
+            perfectPopup.classList.add('show');
+            
+            setTimeout(() => {
+                perfectPopup.classList.remove('show');
+            }, 600);
+        }
+
+        function showClutchPopup() {
+            perfectPopup.textContent = 'CLUTCH!';
+            perfectPopup.classList.remove('show', 'clutch');
+            perfectPopup.classList.add('clutch');
+            void perfectPopup.offsetWidth;
+            perfectPopup.classList.add('show');
+            
+            setTimeout(() => {
+                perfectPopup.classList.remove('show', 'clutch');
+            }, 800);
+        }
+
+        function showScorePopup(points, isBonus, isPenalty = false) {
+            // Create a new independent score popup element
+            const popup = document.createElement('div');
+            popup.className = 'scorePopup';
+            popup.style.position = 'absolute';
+            popup.style.top = '40%';
+            popup.style.left = '50%';
+            popup.style.transform = 'translate(-50%, -50%)';
+            
+            if (isPenalty) {
+                popup.style.color = '#FF3333';
+                popup.style.fontSize = '24px';
+                popup.style.textShadow = '0 2px 10px rgba(255, 51, 51, 0.8)';
+            } else if (isBonus) {
+                popup.style.color = '#FFD700';
+                popup.style.fontSize = '24px';
+                popup.style.textShadow = '0 2px 10px rgba(255, 215, 0, 0.8)';
+            } else {
+                popup.style.color = 'white';
+                popup.style.fontSize = '20px';
+                popup.style.textShadow = '0 2px 10px rgba(0, 0, 0, 0.5)';
+            }
+            
+            popup.style.fontWeight = '700';
+            popup.style.pointerEvents = 'none';
+            popup.style.zIndex = 99 + scorePopupCounter;
+            
+            // Display the score correctly
+            if (isPenalty) {
+                popup.textContent = `${points}`; // Already has negative sign
+            } else if (isBonus) {
+                popup.textContent = `+${points}`;
+            } else {
+                popup.textContent = `+${points}`;
+            }
+            
+            document.getElementById('canvasWrapper').appendChild(popup);
+            scorePopupCounter++;
+            
+            // Animate independently
+            setTimeout(() => {
+                popup.style.animation = 'scoreAnim 1s ease-out forwards';
+            }, 10);
+            
+            setTimeout(() => {
+                popup.remove();
+                scorePopupCounter--;
+            }, 1000);
+        }
+
+        function showEventPopup(text, type = false) {
+            eventPopup.textContent = text;
+            eventPopup.classList.remove('show', 'gravity', 'penalty', 'milestone');
+            if (type) eventPopup.classList.add(type);
+            void eventPopup.offsetWidth;
+            eventPopup.classList.add('show');
+            
+            setTimeout(() => {
+                eventPopup.classList.remove('show');
+            }, 1500);
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            currentBlock = null;
+            playSound(150, 0.4, 0.8);
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalStreak').textContent = maxStreak;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+
+        let canClick = true;
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            if (!canClick) return;
+            
+            canClick = false;
+            dropBlock();
+            
+            setTimeout(() => {
+                canClick = true;
+            }, 100);
+        }
+
+        canvas.addEventListener('click', handleDrop);
+        canvas.addEventListener('touchstart', handleDrop);
+
+        document.getElementById('restartBtn').addEventListener('click', init);
+
+        init();
+    </script>
+</body>
+</html>
